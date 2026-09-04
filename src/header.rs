@@ -1,15 +1,15 @@
 //! Header widget: summary line with host and key metrics.
 
-use crate::util::{border_for, format_uptime, to_color};
+use crate::util::format_uptime;
 use ratatui::prelude::*;
-use ratatui::symbols::border;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Frame;
+use xtop_widget_api::glyph::{border_for, to_color};
 use xtop_widget_api::WidgetState;
 
 pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
-    let fg = to_color(state.theme_fg());
-    let bg = to_color(state.theme_bg());
+    let fg = to_color(*state.theme_fg());
+    let bg = to_color(*state.theme_bg());
 
     let Some(snap) = state.snapshot() else {
         return;
@@ -66,7 +66,7 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_set(border_for(state, "header", border::PLAIN))
+                .border_set(border_for(state.borders("header")))
                 .title("System Info"),
         )
         .wrap(Wrap { trim: true });

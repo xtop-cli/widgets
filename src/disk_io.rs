@@ -1,23 +1,17 @@
 //! Disk I/O widget: read/write throughput.
 
-use crate::util::{border_for, format_bytes, to_color};
+use crate::util::{draw_frame, format_bytes};
 use ratatui::prelude::*;
-use ratatui::symbols::border;
-use ratatui::widgets::{Block, Borders, Gauge, Paragraph, Wrap};
+use ratatui::widgets::{Gauge, Paragraph, Wrap};
 use ratatui::Frame;
+use xtop_widget_api::glyph::to_color;
 use xtop_widget_api::WidgetState;
 
 pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
-    let fg = to_color(state.theme_fg());
-    let bg = to_color(state.theme_bg());
+    let fg = to_color(*state.theme_fg());
+    let bg = to_color(*state.theme_bg());
 
-    let block = Block::default()
-        .title("Disk I/O")
-        .borders(Borders::ALL)
-        .border_set(border_for(state, "disk_io", border::PLAIN))
-        .style(Style::default().fg(fg).bg(bg));
-    let inner = block.inner(area);
-    f.render_widget(block, area);
+    let inner = draw_frame(f, state, "disk_io", "Disk I/O", fg, bg, area);
 
     let Some(snap) = state.snapshot() else {
         return;
@@ -41,10 +35,7 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
     let per_disk = 3.min(inner.height / snap.disk_io.len().max(1) as u16);
     let per_disk = per_disk.max(2);
     let constraints = vec![Constraint::Length(per_disk); snap.disk_io.len()];
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(constraints)
-        .split(inner);
+    let chunks = Layout::vertical(constraints).split(inner);
 
     for (i, d) in snap.disk_io.iter().enumerate() {
         if i >= chunks.len() {
@@ -56,7 +47,7 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
         let gauge = Gauge::default()
             .gauge_style(
                 Style::default()
-                    .fg(to_color(&state.theme_palette()[4]))
+                    .fg(to_color(state.theme_palette()[4]))
                     .bg(bg),
             )
             .percent((d.read_speed / max_speed * 100.0) as u16)
@@ -65,14 +56,12 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
 
         // Draw write speed as a second line if there's room
         if per_disk >= 3 {
-            let sub = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([Constraint::Length(1), Constraint::Length(1)])
-                .split(chunks[i]);
+            let sub =
+                Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).split(chunks[i]);
             let write_gauge = Gauge::default()
                 .gauge_style(
                     Style::default()
-                        .fg(to_color(&state.theme_palette()[5]))
+                        .fg(to_color(state.theme_palette()[5]))
                         .bg(bg),
                 )
                 .percent((d.write_speed / max_speed * 100.0) as u16)

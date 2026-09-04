@@ -1,23 +1,17 @@
 //! Network widget: RX/TX rates per interface.
 
-use crate::util::{border_for, format_bytes, marker_for, to_color};
+use crate::util::{draw_frame, format_bytes, x_bounds};
 use ratatui::prelude::*;
-use ratatui::symbols::border;
 use ratatui::widgets::{Axis, Block, Borders, Chart, Dataset, GraphType, Paragraph, Wrap};
 use ratatui::Frame;
+use xtop_widget_api::glyph::{marker_for, to_color};
 use xtop_widget_api::WidgetState;
 
 pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
-    let fg = to_color(state.theme_fg());
-    let bg = to_color(state.theme_bg());
+    let fg = to_color(*state.theme_fg());
+    let bg = to_color(*state.theme_bg());
 
-    let block = Block::default()
-        .title("Network")
-        .borders(Borders::ALL)
-        .border_set(border_for(state, "network", border::DOUBLE))
-        .style(Style::default().fg(fg).bg(bg));
-    let inner = block.inner(area);
-    f.render_widget(block, area);
+    let inner = draw_frame(f, state, "network", "Network", fg, bg, area);
 
     let Some(snap) = state.snapshot() else {
         return;
@@ -30,10 +24,7 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
     let has_chart = inner.height > 6;
 
     if has_chart {
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(4), Constraint::Min(0)])
-            .split(inner);
+        let chunks = Layout::vertical([Constraint::Length(4), Constraint::Min(0)]).split(inner);
 
         render_stats(
             f,
@@ -79,24 +70,24 @@ fn render_stats(
             Span::styled("RX: ", Style::default().fg(fg)),
             Span::styled(
                 format_bytes(total_rx),
-                Style::default().fg(to_color(&state.theme_palette()[4])),
+                Style::default().fg(to_color(state.theme_palette()[4])),
             ),
             Span::raw("  "),
             Span::styled(
                 format!("{}/s", format_bytes(total_rx_speed as u64)),
-                Style::default().fg(to_color(&state.theme_palette()[4])),
+                Style::default().fg(to_color(state.theme_palette()[4])),
             ),
         ]),
         Line::from(vec![
             Span::styled("TX: ", Style::default().fg(fg)),
             Span::styled(
                 format_bytes(total_tx),
-                Style::default().fg(to_color(&state.theme_palette()[5])),
+                Style::default().fg(to_color(state.theme_palette()[5])),
             ),
             Span::raw("  "),
             Span::styled(
                 format!("{}/s", format_bytes(total_tx_speed as u64)),
-                Style::default().fg(to_color(&state.theme_palette()[5])),
+                Style::default().fg(to_color(state.theme_palette()[5])),
             ),
         ]),
     ];
@@ -137,21 +128,19 @@ fn render_net_chart(f: &mut Frame, state: &dyn WidgetState, area: Rect, _bg: Col
     let datasets = vec![
         Dataset::default()
             .name("RX")
-            .marker(marker_for(state, "network"))
+            .marker(marker_for(state.charset("network")))
             .graph_type(GraphType::Line)
-            .style(Style::default().fg(to_color(&state.theme_palette()[4])))
+            .style(Style::default().fg(to_color(state.theme_palette()[4])))
             .data(&rx_data),
         Dataset::default()
             .name("TX")
-            .marker(marker_for(state, "network"))
+            .marker(marker_for(state.charset("network")))
             .graph_type(GraphType::Line)
-            .style(Style::default().fg(to_color(&state.theme_palette()[5])))
+            .style(Style::default().fg(to_color(state.theme_palette()[5])))
             .data(&tx_data),
     ];
 
-    let x_min = rx_data.first().map(|&(x, _)| x).unwrap_or(0.0);
-    let x_max = rx_data.last().map(|&(x, _)| x).unwrap_or(100.0);
-    let x_max = x_max.max(x_min + 1.0);
+    let [x_min, x_max] = x_bounds(&rx_data);
 
     let chart = Chart::new(datasets)
         .block(Block::default().borders(Borders::TOP))

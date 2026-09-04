@@ -1,23 +1,17 @@
 //! Storage widget: mounted filesystems and usage.
 
-use crate::util::{border_for, format_bytes, gauge_gradient, to_color};
+use crate::util::{draw_frame, format_bytes, gauge_gradient};
 use ratatui::prelude::*;
-use ratatui::symbols::border;
-use ratatui::widgets::{Block, Borders, Gauge};
+use ratatui::widgets::Gauge;
 use ratatui::Frame;
+use xtop_widget_api::glyph::to_color;
 use xtop_widget_api::WidgetState;
 
 pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
-    let fg = to_color(state.theme_fg());
-    let bg = to_color(state.theme_bg());
+    let fg = to_color(*state.theme_fg());
+    let bg = to_color(*state.theme_bg());
 
-    let block = Block::default()
-        .title("Storage")
-        .borders(Borders::ALL)
-        .border_set(border_for(state, "storage", border::DOUBLE))
-        .style(Style::default().fg(fg).bg(bg));
-    let inner = block.inner(area);
-    f.render_widget(block, area);
+    let inner = draw_frame(f, state, "storage", "Storage", fg, bg, area);
 
     let Some(snap) = state.snapshot() else {
         return;
@@ -29,10 +23,7 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
 
     let per_disk = inner.height.min(3);
     let constraints = vec![Constraint::Length(per_disk); disks.len()];
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(constraints)
-        .split(inner);
+    let chunks = Layout::vertical(constraints).split(inner);
 
     for (i, disk) in disks.iter().enumerate() {
         if i >= chunks.len() {
@@ -51,7 +42,7 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
         let gauge = Gauge::default()
             .gauge_style(
                 Style::default()
-                    .fg(to_color(&state.theme_palette()[color_idx]))
+                    .fg(to_color(state.theme_palette()[color_idx]))
                     .bg(bg),
             )
             .percent(disk.percent as u16)

@@ -1,23 +1,17 @@
 //! Battery widget: charge, status and health.
 
-use crate::util::{border_for, to_color};
+use crate::util::draw_frame;
 use ratatui::prelude::*;
-use ratatui::symbols::border;
-use ratatui::widgets::{Block, Borders, Gauge, Paragraph, Wrap};
+use ratatui::widgets::{Gauge, Paragraph, Wrap};
 use ratatui::Frame;
+use xtop_widget_api::glyph::to_color;
 use xtop_widget_api::WidgetState;
 
 pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
-    let fg = to_color(state.theme_fg());
-    let bg = to_color(state.theme_bg());
+    let fg = to_color(*state.theme_fg());
+    let bg = to_color(*state.theme_bg());
 
-    let block = Block::default()
-        .title("Battery")
-        .borders(Borders::ALL)
-        .border_set(border_for(state, "battery", border::ROUNDED))
-        .style(Style::default().fg(fg).bg(bg));
-    let inner = block.inner(area);
-    f.render_widget(block, area);
+    let inner = draw_frame(f, state, "battery", "Battery", fg, bg, area);
 
     let Some(snap) = state.snapshot() else {
         return;
@@ -30,10 +24,7 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
         return;
     }
 
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(vec![Constraint::Length(3); snap.batteries.len()])
-        .split(inner);
+    let chunks = Layout::vertical(vec![Constraint::Length(3); snap.batteries.len()]).split(inner);
 
     for (i, bat) in snap.batteries.iter().enumerate() {
         if i >= chunks.len() {
@@ -55,7 +46,7 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
         let gauge = Gauge::default()
             .gauge_style(
                 Style::default()
-                    .fg(to_color(&state.theme_palette()[2]))
+                    .fg(to_color(state.theme_palette()[2]))
                     .bg(bg),
             )
             .percent(bat.percentage as u16)

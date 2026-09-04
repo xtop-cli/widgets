@@ -1,15 +1,15 @@
 //! CPU widget: per-core usage bars and temperature.
 
-use crate::util::{border_for, gauge_gradient, marker_for, to_color};
+use crate::util::{draw_frame, gauge_gradient, x_bounds};
 use ratatui::prelude::*;
-use ratatui::symbols::border;
 use ratatui::widgets::{Axis, Block, Borders, Chart, Dataset, Gauge, GraphType};
 use ratatui::Frame;
+use xtop_widget_api::glyph::{marker_for, to_color};
 use xtop_widget_api::WidgetState;
 
 pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
-    let fg = to_color(state.theme_fg());
-    let bg = to_color(state.theme_bg());
+    let fg = to_color(*state.theme_fg());
+    let bg = to_color(*state.theme_bg());
     let Some(snap) = state.snapshot() else {
         return;
     };
@@ -20,13 +20,7 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
         "CPU".to_string()
     };
 
-    let block = Block::default()
-        .title(title)
-        .borders(Borders::ALL)
-        .border_set(border_for(state, "cpu", border::ROUNDED))
-        .style(Style::default().fg(fg).bg(bg));
-    let inner = block.inner(area);
-    f.render_widget(block, area);
+    let inner = draw_frame(f, state, "cpu", title, fg, bg, area);
 
     if snap.cpus.is_empty() {
         return;
@@ -39,10 +33,7 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
     } else {
         vec![Constraint::Percentage(100)]
     };
-    let col_areas = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(col_constraints)
-        .split(inner);
+    let col_areas = Layout::horizontal(col_constraints).split(inner);
 
     let per_col = count.div_ceil(cols);
     let chart_avail = inner.height > per_col as u16 + 4;
@@ -52,10 +43,7 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
         let start = col_idx * per_col;
         let end = (start + per_col).min(count);
 
-        let rows = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1); end - start])
-            .split(*col_area);
+        let rows = Layout::vertical(vec![Constraint::Length(1); end - start]).split(*col_area);
 
         for (i, row_area) in rows.iter().enumerate() {
             let cpu_idx = start + i;
@@ -73,7 +61,7 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
             let gauge = Gauge::default()
                 .gauge_style(
                     Style::default()
-                        .fg(to_color(&state.theme_palette()[color_idx]))
+                        .fg(to_color(state.theme_palette()[color_idx]))
                         .bg(bg),
                 )
                 .percent(usage as u16)
@@ -85,9 +73,7 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
     // Aggregate CPU chart below gauges
     if chart_avail {
         let gauge_height = per_col as u16; // min height for gauges in one column
-        let chart_area = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(gauge_height), Constraint::Min(0)])
+        let chart_area = Layout::vertical([Constraint::Length(gauge_height), Constraint::Min(0)])
             .split(inner)
             .last()
             .copied()
@@ -121,14 +107,12 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
 
             let datasets = vec![Dataset::default()
                 .name("CPU Avg")
-                .marker(marker_for(state, "cpu"))
+                .marker(marker_for(state.charset("cpu")))
                 .graph_type(GraphType::Line)
-                .style(Style::default().fg(to_color(&state.theme_palette()[1])))
+                .style(Style::default().fg(to_color(state.theme_palette()[1])))
                 .data(&avg)];
 
-            let x_min = avg.first().map(|&(x, _)| x).unwrap_or(0.0);
-            let x_max = avg.last().map(|&(x, _)| x).unwrap_or(100.0);
-            let x_max = x_max.max(x_min + 1.0);
+            let [x_min, x_max] = x_bounds(&avg);
 
             let chart = Chart::new(datasets)
                 .block(Block::default().borders(Borders::TOP))

@@ -1,9 +1,15 @@
 //! `xtop-widget-blocks` — alternate widget pack demo.
 //!
 //! Proves that a pack outside the kernel can replace a built-in widget *by
-//! name*: it provides its own `cpu` and `memory` renderers (solid-block
-//! charts, plain ASCII-ish borders) while every other name falls back to the
-//! base pack.
+//! name*: it provides its own `cpu` and `memory` renderers (compact
+//! one-line-per-core gauges with ASCII `#` fill labels) while every other
+//! name falls back to the base pack.
+//!
+//! Glyph mapping (colors, borders, chart markers) comes from the contract —
+//! `xtop_widget_api::glyph` — never re-implemented here. The pack's own look
+//! is the ASCII block fill it prints in the per-core gauge labels; borders
+//! and chart markers follow `state.charset()`/`state.borders()` like the base
+//! pack.
 //!
 //! Enable with the kernel's `widget-blocks` feature, then pick it in
 //! `config.json`:
@@ -13,12 +19,12 @@
 //! ```
 
 use ratatui::prelude::*;
-use ratatui::symbols::border;
 use ratatui::widgets::{Axis, Block, Borders, Chart, Dataset, Gauge, GraphType};
 use ratatui::Frame;
 use std::collections::HashMap;
 use std::sync::Arc;
-use xtop_widget_api::{ChartCharset, WidgetBorders, WidgetRenderer, WidgetState};
+use xtop_widget_api::glyph::{border_for, marker_for, to_color};
+use xtop_widget_api::{WidgetRenderer, WidgetState};
 
 pub fn registry() -> HashMap<&'static str, WidgetRenderer> {
     let mut m: HashMap<&'static str, WidgetRenderer> = HashMap::new();
@@ -27,39 +33,34 @@ pub fn registry() -> HashMap<&'static str, WidgetRenderer> {
     m
 }
 
-fn border_for(
+/// Draw the standard widget frame (title, borders from the contract mapping,
+/// theme colors) and return the area inside it.
+fn draw_frame(
+    f: &mut Frame,
     state: &dyn WidgetState,
     widget: &str,
-    native: ratatui::symbols::border::Set,
-) -> ratatui::symbols::border::Set {
-    match state.borders(widget) {
-        WidgetBorders::Ascii | WidgetBorders::Plain => ascii_border(),
-        WidgetBorders::Native => native,
-        WidgetBorders::Rounded => border::ROUNDED,
-        WidgetBorders::Double => border::DOUBLE,
-    }
+    title: impl Into<Line<'static>>,
+    fg: Color,
+    bg: Color,
+    area: Rect,
+) -> Rect {
+    let block = Block::default()
+        .title(title)
+        .borders(Borders::ALL)
+        .border_set(border_for(state.borders(widget)))
+        .style(Style::default().fg(fg).bg(bg));
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+    inner
 }
 
-fn ascii_border() -> ratatui::symbols::border::Set {
-    ratatui::symbols::border::Set {
-        top_left: "+",
-        top_right: "+",
-        bottom_left: "+",
-        bottom_right: "+",
-        vertical_left: "|",
-        vertical_right: "|",
-        horizontal_top: "-",
-        horizontal_bottom: "-",
-    }
-}
-
-/// Solid-block version of the CPU widget.
+/// Solid-block-flavored version of the CPU widget.
 pub mod cpu {
     use super::*;
 
     pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
-        let fg = to_color(state.theme_fg());
-        let bg = to_color(state.theme_bg());
+        let fg = to_color(*state.theme_fg());
+        let bg = to_color(*state.theme_bg());
         let Some(snap) = state.snapshot() else {
             return;
         };
@@ -68,25 +69,17 @@ pub mod cpu {
         } else {
             "CPU BLOCKS".to_string()
         };
-        let block = Block::default()
-            .title(title)
-            .borders(Borders::ALL)
-            .border_set(border_for(state, "cpu", border::ROUNDED))
-            .style(Style::default().fg(fg).bg(bg));
-        let inner = block.inner(area);
-        f.render_widget(block, area);
+        let inner = draw_frame(f, state, "cpu", title, fg, bg, area);
         if snap.cpus.is_empty() {
             return;
         }
 
-        // Per-core gauges, one line each.
-        let rows = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(vec![
-                Constraint::Length(1);
-                snap.cpus.len().min(inner.height as usize)
-            ])
-            .split(inner);
+        // Per-core gauges, one line each, with an ASCII block fill label.
+        let rows = Layout::vertical(vec![
+            Constraint::Length(1);
+            snap.cpus.len().min(inner.height as usize)
+        ])
+        .split(inner);
         for (i, row) in rows.iter().enumerate() {
             if i >= snap.cpus.len() {
                 break;
@@ -101,7 +94,7 @@ pub mod cpu {
             let gauge = Gauge::default()
                 .gauge_style(
                     Style::default()
-                        .fg(to_color(&state.theme_palette()[2]))
+                        .fg(to_color(state.theme_palette()[2]))
                         .bg(bg),
                 )
                 .percent(c.usage as u16)
@@ -111,33 +104,27 @@ pub mod cpu {
     }
 }
 
-/// Solid-block version of the memory widget.
+/// Compact version of the memory widget.
 pub mod memory {
     use super::*;
 
     pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
-        let fg = to_color(state.theme_fg());
-        let bg = to_color(state.theme_bg());
+        let fg = to_color(*state.theme_fg());
+        let bg = to_color(*state.theme_bg());
         let Some(snap) = state.snapshot() else {
             return;
         };
-        let block = Block::default()
-            .title("Memory (blocks)")
-            .borders(Borders::ALL)
-            .border_set(border_for(state, "memory", border::ROUNDED))
-            .style(Style::default().fg(fg).bg(bg));
-        let inner = block.inner(area);
-        f.render_widget(block, area);
+        let inner = draw_frame(f, state, "memory", "Memory (blocks)", fg, bg, area);
 
-        // History chart drawn with Block markers regardless of the config
-        // charset: this pack demonstrates its own interpretation.
+        // History chart honors the resolved per-widget charset, like every
+        // other pack: the marker mapping lives in xtop-widget-api.
         let data: Vec<(f64, f64)> = state.mem_history().iter().copied().collect();
         if inner.height > 8 && data.len() >= 2 {
             let dataset = Dataset::default()
                 .name("RAM")
-                .marker(ratatui::symbols::Marker::Block)
+                .marker(marker_for(state.charset("memory")))
                 .graph_type(GraphType::Line)
-                .style(Style::default().fg(to_color(&state.theme_palette()[2])))
+                .style(Style::default().fg(to_color(state.theme_palette()[2])))
                 .data(&data);
             let x_min = data.first().map(|&(x, _)| x).unwrap_or(0.0);
             let x_max = data
@@ -163,7 +150,7 @@ pub mod memory {
             let gauge = Gauge::default()
                 .gauge_style(
                     Style::default()
-                        .fg(to_color(&state.theme_palette()[2]))
+                        .fg(to_color(state.theme_palette()[2]))
                         .bg(bg),
                 )
                 .percent(pct)
@@ -172,10 +159,3 @@ pub mod memory {
         }
     }
 }
-
-fn to_color(c: &[u8; 3]) -> Color {
-    Color::Rgb(c[0], c[1], c[2])
-}
-
-/// Make sure unused variants are flagged if they rot (keeps the pack honest).
-const _: ChartCharset = ChartCharset::Block;

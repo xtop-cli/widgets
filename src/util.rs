@@ -1,16 +1,18 @@
-//! Shared rendering helpers for widget packs (no kernel dependencies).
+//! Pack-private rendering helpers for the base widgets.
 //!
-//! Colors, formatting and glyph mapping. Packs translate the contract glyph
-//! enums with their own ratatui symbol sets.
+//! Formatting and palette-index helpers that are not part of the
+//! `xtop-widget-api` contract, plus the two small private helpers shared by
+//! the render prologues (frame + chart x-bounds). Glyph mapping (colors,
+//! borders, chart markers) deliberately lives in the contract crate:
+//! `xtop_widget_api::glyph`.
 
-use ratatui::prelude::Color;
-use ratatui::symbols::border::Set;
-use ratatui::symbols::{border, Marker};
-use xtop_widget_api::{ChartCharset, WidgetBorders, WidgetState};
-
-pub fn to_color(c: &[u8; 3]) -> Color {
-    Color::Rgb(c[0], c[1], c[2])
-}
+use ratatui::layout::Rect;
+use ratatui::style::{Color, Style};
+use ratatui::text::Line;
+use ratatui::widgets::{Block, Borders};
+use ratatui::Frame;
+use xtop_widget_api::glyph::border_for;
+use xtop_widget_api::WidgetState;
 
 /// Returns a palette index for gauge color based on percentage.
 pub fn gauge_gradient(pct: f64, alert_at: f64) -> usize {
@@ -42,39 +44,51 @@ pub fn format_uptime(secs: u64) -> String {
     format!("{}d {}h {}m {}s", days, hours, minutes, seconds)
 }
 
-/// Border set a widget should draw (per-widget overrides come resolved from
-/// the contract).
-pub fn border_for(state: &dyn WidgetState, widget: &str, native: Set) -> Set {
-    match state.borders(widget) {
-        WidgetBorders::Native => native,
-        WidgetBorders::Rounded => border::ROUNDED,
-        WidgetBorders::Double => border::DOUBLE,
-        WidgetBorders::Plain => border::PLAIN,
-        WidgetBorders::Ascii => ascii_border(),
-    }
+/// The standard widget frame block: title, all borders, theme colors.
+///
+/// The border set comes from the contract (`border_for(state.borders(name))`),
+/// never from a pack-private mapping.
+pub(crate) fn widget_block(
+    state: &dyn WidgetState,
+    widget: &str,
+    title: impl Into<Line<'static>>,
+    fg: Color,
+    bg: Color,
+) -> Block<'static> {
+    Block::default()
+        .title(title)
+        .borders(Borders::ALL)
+        .border_set(border_for(state.borders(widget)))
+        .style(Style::default().fg(fg).bg(bg))
 }
 
-/// Chart marker a widget should draw.
-pub fn marker_for(state: &dyn WidgetState, widget: &str) -> Marker {
-    match state.charset(widget) {
-        ChartCharset::Braille => Marker::Braille,
-        ChartCharset::Dot => Marker::Dot,
-        ChartCharset::Block => Marker::Block,
-        ChartCharset::HalfBlock => Marker::HalfBlock,
-        ChartCharset::Bar => Marker::Bar,
-    }
+/// Draw the widget frame and return the area inside it.
+///
+/// Most render functions share this prologue: build the bordered block,
+/// paint it over `area`, and continue drawing inside the returned `inner`
+/// rect. The header widget is the exception (its block belongs to a
+/// `Paragraph`) and keeps its own construction.
+pub(crate) fn draw_frame(
+    f: &mut Frame,
+    state: &dyn WidgetState,
+    widget: &str,
+    title: impl Into<Line<'static>>,
+    fg: Color,
+    bg: Color,
+    area: Rect,
+) -> Rect {
+    let block = widget_block(state, widget, title, fg, bg);
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+    inner
 }
 
-/// Pure ASCII block borders.
-pub fn ascii_border() -> Set {
-    Set {
-        top_left: "+",
-        top_right: "+",
-        bottom_left: "+",
-        bottom_right: "+",
-        vertical_left: "|",
-        vertical_right: "|",
-        horizontal_top: "-",
-        horizontal_bottom: "-",
+/// X-axis bounds for a history chart: from the first to the last sample,
+/// widened to at least one unit so ratatui never sees an empty span.
+pub(crate) fn x_bounds(data: &[(f64, f64)]) -> [f64; 2] {
+    match (data.first(), data.last()) {
+        (Some(&(x0, _)), Some(&(x1, _))) if x1 > x0 => [x0, x1],
+        (Some(&(x, _)), _) => [x, x + 1.0],
+        _ => [0.0, 100.0],
     }
 }

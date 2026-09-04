@@ -4,31 +4,25 @@
 //! (`WidgetState::process_view`), so the highlighted row always matches the
 //! kernel's PID-anchored selection.
 
-use crate::util::{border_for, format_bytes, to_color};
+use crate::util::{draw_frame, format_bytes};
 use ratatui::prelude::*;
-use ratatui::symbols::border;
-use ratatui::widgets::{Block, Borders, Cell, Row, Table};
+use ratatui::widgets::{Cell, Row, Table};
 use ratatui::Frame;
+use xtop_widget_api::glyph::to_color;
 use xtop_widget_api::WidgetState;
 
 pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
-    let fg = to_color(state.theme_fg());
-    let bg = to_color(state.theme_bg());
-    let dim_bg = to_color(&state.theme_palette()[8]);
-    let accent = to_color(&state.theme_palette()[6]);
+    let fg = to_color(*state.theme_fg());
+    let bg = to_color(*state.theme_bg());
+    let dim_bg = to_color(state.theme_palette()[8]);
+    let accent = to_color(state.theme_palette()[6]);
 
     let mut title = format!("Processes (sort: {})", state.process_sort_label());
     if !state.search_query().is_empty() {
         title = format!("Processes (filter: {})", state.search_query());
     }
 
-    let block = Block::default()
-        .title(title)
-        .borders(Borders::ALL)
-        .border_set(border_for(state, "processes", border::PLAIN))
-        .style(Style::default().fg(fg).bg(bg));
-    let inner = block.inner(area);
-    f.render_widget(block, area);
+    let inner = draw_frame(f, state, "processes", title, fg, bg, area);
 
     let items = state.process_view();
 

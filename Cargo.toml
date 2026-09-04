@@ -6,9 +6,10 @@ members = [".", "packs/xtop-widget-blocks"]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+rust-version = "1.87"
 
 [workspace.dependencies]
-ratatui = "0.29"
+ratatui = "0.30.2"
 xtop-widget-api = { git = "https://github.com/xtop-cli/api" }
 xtop-plugin-api = { git = "https://github.com/xtop-cli/api" }
 
@@ -17,6 +18,7 @@ name = "xtop-widgets"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
 description = "Base widget pack for the xtop TUI: renderers drawn against xtop-widget-api"
 repository = "https://github.com/xtop-cli/widgets"
 
