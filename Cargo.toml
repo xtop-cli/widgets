@@ -1,0 +1,26 @@
+[workspace]
+resolver = "2"
+members = [".", "packs/xtop-widget-blocks"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+ratatui = "0.29"
+xtop-widget-api = { git = "https://github.com/xtop-cli/api" }
+xtop-plugin-api = { git = "https://github.com/xtop-cli/api" }
+
+[package]
+name = "xtop-widgets"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Base widget pack for the xtop TUI: renderers drawn against xtop-widget-api"
+repository = "https://github.com/xtop-cli/widgets"
+
+[dependencies]
+ratatui.workspace = true
+xtop-widget-api.workspace = true
+xtop-plugin-api.workspace = true

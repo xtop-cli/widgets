@@ -1,0 +1,11 @@
+[package]
+name = "xtop-widget-blocks"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Alternate widget pack for xtop: solid-block charts and plain/ascii borders"
+repository = "https://github.com/xtop-cli/widgets"
+
+[dependencies]
+ratatui.workspace = true
+xtop-widget-api.workspace = true
