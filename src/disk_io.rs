@@ -1,8 +1,5 @@
 //! Disk I/O widget: read/write throughput.
 
-
-
-
 use crate::util::{border_for, format_bytes, to_color};
 use ratatui::prelude::*;
 use ratatui::symbols::border;

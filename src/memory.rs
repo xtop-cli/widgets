@@ -1,8 +1,5 @@
 //! Memory widget: RAM and swap usage with history.
 
-
-
-
 use crate::util::{border_for, format_bytes, gauge_gradient, marker_for, to_color};
 use ratatui::prelude::*;
 use ratatui::symbols::border;

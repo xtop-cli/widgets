@@ -1,8 +1,5 @@
 //! Storage widget: mounted filesystems and usage.
 
-
-
-
 use crate::util::{border_for, format_bytes, gauge_gradient, to_color};
 use ratatui::prelude::*;
 use ratatui::symbols::border;

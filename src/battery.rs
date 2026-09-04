@@ -1,7 +1,5 @@
 //! Battery widget: charge, status and health.
 
-
-
 use crate::util::{border_for, to_color};
 use ratatui::prelude::*;
 use ratatui::symbols::border;

@@ -1,7 +1,5 @@
 //! CPU widget: per-core usage bars and temperature.
 
-
-
 use crate::util::{border_for, gauge_gradient, marker_for, to_color};
 use ratatui::prelude::*;
 use ratatui::symbols::border;
@@ -95,7 +93,12 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
             .copied()
             .unwrap_or(inner);
 
-        let max_len = state.cpu_history().iter().map(|h| h.len()).max().unwrap_or(0);
+        let max_len = state
+            .cpu_history()
+            .iter()
+            .map(|h| h.len())
+            .max()
+            .unwrap_or(0);
         if max_len > 1 {
             let mut avg: Vec<(f64, f64)> = Vec::new();
             for tick in 0..max_len {

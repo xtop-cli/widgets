@@ -12,12 +12,12 @@
 //! { "style": { "widgets": { "cpu": { "pack": "blocks" } } } }
 //! ```
 
-use std::collections::HashMap;
-use std::sync::Arc;
 use ratatui::prelude::*;
 use ratatui::symbols::border;
 use ratatui::widgets::{Axis, Block, Borders, Chart, Dataset, Gauge, GraphType};
 use ratatui::Frame;
+use std::collections::HashMap;
+use std::sync::Arc;
 use xtop_widget_api::{ChartCharset, WidgetBorders, WidgetRenderer, WidgetState};
 
 pub fn registry() -> HashMap<&'static str, WidgetRenderer> {
@@ -27,7 +27,11 @@ pub fn registry() -> HashMap<&'static str, WidgetRenderer> {
     m
 }
 
-fn border_for(state: &dyn WidgetState, widget: &str, native: ratatui::symbols::border::Set) -> ratatui::symbols::border::Set {
+fn border_for(
+    state: &dyn WidgetState,
+    widget: &str,
+    native: ratatui::symbols::border::Set,
+) -> ratatui::symbols::border::Set {
     match state.borders(widget) {
         WidgetBorders::Ascii | WidgetBorders::Plain => ascii_border(),
         WidgetBorders::Native => native,
@@ -78,16 +82,28 @@ pub mod cpu {
         // Per-core gauges, one line each.
         let rows = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(1); snap.cpus.len().min(inner.height as usize)])
+            .constraints(vec![
+                Constraint::Length(1);
+                snap.cpus.len().min(inner.height as usize)
+            ])
             .split(inner);
         for (i, row) in rows.iter().enumerate() {
             if i >= snap.cpus.len() {
                 break;
             }
             let c = &snap.cpus[i];
-            let label = format!("CPU{:<2} {:>3.0}% {}", c.cpu_id, c.usage, "#".repeat((c.usage / 5.0) as usize));
+            let label = format!(
+                "CPU{:<2} {:>3.0}% {}",
+                c.cpu_id,
+                c.usage,
+                "#".repeat((c.usage / 5.0) as usize)
+            );
             let gauge = Gauge::default()
-                .gauge_style(Style::default().fg(to_color(&state.theme_palette()[2])).bg(bg))
+                .gauge_style(
+                    Style::default()
+                        .fg(to_color(&state.theme_palette()[2]))
+                        .bg(bg),
+                )
                 .percent(c.usage as u16)
                 .label(label);
             f.render_widget(gauge, *row);
@@ -124,10 +140,18 @@ pub mod memory {
                 .style(Style::default().fg(to_color(&state.theme_palette()[2])))
                 .data(&data);
             let x_min = data.first().map(|&(x, _)| x).unwrap_or(0.0);
-            let x_max = data.last().map(|&(x, _)| x).unwrap_or(x_min + 1.0).max(x_min + 1.0);
+            let x_max = data
+                .last()
+                .map(|&(x, _)| x)
+                .unwrap_or(x_min + 1.0)
+                .max(x_min + 1.0);
             let chart = Chart::new(vec![dataset])
                 .block(Block::default().borders(Borders::TOP))
-                .x_axis(Axis::default().bounds([x_min, x_max]).labels(vec![Span::raw("")]))
+                .x_axis(
+                    Axis::default()
+                        .bounds([x_min, x_max])
+                        .labels(vec![Span::raw("")]),
+                )
                 .y_axis(Axis::default().bounds([0.0, 100.0]).labels(vec![
                     Span::raw("0"),
                     Span::raw("50"),
@@ -137,7 +161,11 @@ pub mod memory {
         } else {
             let pct = snap.memory.percent as u16;
             let gauge = Gauge::default()
-                .gauge_style(Style::default().fg(to_color(&state.theme_palette()[2])).bg(bg))
+                .gauge_style(
+                    Style::default()
+                        .fg(to_color(&state.theme_palette()[2]))
+                        .bg(bg),
+                )
                 .percent(pct)
                 .label(format!("RAM {:>3.0}%", snap.memory.percent));
             f.render_widget(gauge, inner);

@@ -1,8 +1,5 @@
 //! Network widget: RX/TX rates per interface.
 
-
-
-
 use crate::util::{border_for, format_bytes, marker_for, to_color};
 use ratatui::prelude::*;
 use ratatui::symbols::border;

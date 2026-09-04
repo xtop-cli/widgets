@@ -1,8 +1,5 @@
 //! GPU widget: driver-reported GPU usage.
 
-
-
-
 use crate::util::{border_for, format_bytes, to_color};
 use ratatui::prelude::*;
 use ratatui::symbols::border;
