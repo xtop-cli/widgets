@@ -53,5 +53,6 @@ xtop-widget-summary = { path = "xtop-widget-summary" }
 xtop-widget-api.workspace = true
 
 [dev-dependencies]
+ratatui.workspace = true
 serde_json.workspace = true
 xtop-widget-core = { path = "xtop-widget-core", features = ["testkit"] }
