@@ -1,14 +1,18 @@
 [package]
-name = "xtop-widget-blocks"
+name = "xtop-widget-gpu"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Alternate widget pack for xtop: compact per-core gauges with ASCII fill labels"
+description = "GPU widget for the xtop TUI: usage gauges"
 repository = "https://github.com/xtop-cli/widgets"
 
 [dependencies]
 ratatui.workspace = true
-serde_json = "1"
 xtop-plugin-api.workspace = true
 xtop-widget-api.workspace = true
+xtop-widget-core = { path = "../xtop-widget-core" }
+
+[dev-dependencies]
+serde_json.workspace = true
+xtop-widget-core = { path = "../xtop-widget-core", features = ["testkit"] }

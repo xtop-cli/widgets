@@ -1,0 +1,18 @@
+[package]
+name = "xtop-widget-summary"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Summary widget for the xtop TUI: load, gauges, process counts, uptime"
+repository = "https://github.com/xtop-cli/widgets"
+
+[dependencies]
+ratatui.workspace = true
+xtop-plugin-api.workspace = true
+xtop-widget-api.workspace = true
+xtop-widget-core = { path = "../xtop-widget-core" }
+
+[dev-dependencies]
+serde_json.workspace = true
+xtop-widget-core = { path = "../xtop-widget-core", features = ["testkit"] }

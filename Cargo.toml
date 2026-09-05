@@ -1,6 +1,21 @@
 [workspace]
 resolver = "2"
-members = [".", "packs/xtop-widget-blocks"]
+members = [
+    ".",
+    "xtop-widget-core",
+    "xtop-widget-header",
+    "xtop-widget-cpu",
+    "xtop-widget-memory",
+    "xtop-widget-storage",
+    "xtop-widget-network",
+    "xtop-widget-processes",
+    "xtop-widget-disk_io",
+    "xtop-widget-battery",
+    "xtop-widget-gpu",
+    "xtop-widget-summary",
+    "xtop-widget-sensors",
+    "packs/xtop-widget-blocks",
+]
 
 [workspace.package]
 version = "0.1.0"
@@ -10,6 +25,7 @@ rust-version = "1.87"
 
 [workspace.dependencies]
 ratatui = "0.30.2"
+serde_json = "1"
 xtop-widget-api = { git = "https://github.com/xtop-cli/api" }
 xtop-plugin-api = { git = "https://github.com/xtop-cli/api" }
 
@@ -19,10 +35,23 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Base widget pack for the xtop TUI: renderers drawn against xtop-widget-api"
+description = "Base widget pack for the xtop TUI: per-widget crates aggregated into the classic registry"
 repository = "https://github.com/xtop-cli/widgets"
 
 [dependencies]
-ratatui.workspace = true
+xtop-widget-battery = { path = "xtop-widget-battery" }
+xtop-widget-cpu = { path = "xtop-widget-cpu" }
+xtop-widget-disk_io = { path = "xtop-widget-disk_io" }
+xtop-widget-gpu = { path = "xtop-widget-gpu" }
+xtop-widget-header = { path = "xtop-widget-header" }
+xtop-widget-memory = { path = "xtop-widget-memory" }
+xtop-widget-network = { path = "xtop-widget-network" }
+xtop-widget-processes = { path = "xtop-widget-processes" }
+xtop-widget-sensors = { path = "xtop-widget-sensors" }
+xtop-widget-storage = { path = "xtop-widget-storage" }
+xtop-widget-summary = { path = "xtop-widget-summary" }
 xtop-widget-api.workspace = true
-xtop-plugin-api.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+xtop-widget-core = { path = "xtop-widget-core", features = ["testkit"] }

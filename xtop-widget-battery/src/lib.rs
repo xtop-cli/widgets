@@ -1,17 +1,18 @@
 //! Battery widget: charge, status and health.
 
-use crate::util::draw_frame;
 use ratatui::prelude::*;
 use ratatui::widgets::{Gauge, Paragraph, Wrap};
 use ratatui::Frame;
 use xtop_widget_api::glyph::to_color;
 use xtop_widget_api::WidgetState;
+use xtop_widget_core::util::draw_frame;
 
 pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
+    let opts = state.widget_options();
     let fg = to_color(*state.theme_fg());
     let bg = to_color(*state.theme_bg());
 
-    let inner = draw_frame(f, state, "battery", "Battery", fg, bg, area);
+    let inner = draw_frame(f, state, "battery", opts, "Battery", fg, bg, area);
 
     let Some(snap) = state.snapshot() else {
         return;
