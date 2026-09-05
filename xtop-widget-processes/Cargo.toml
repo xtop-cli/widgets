@@ -1,0 +1,18 @@
+[package]
+name = "xtop-widget-processes"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Processes widget for the xtop TUI: fixed-column process table with user names, commands and cpu sparks"
+repository = "https://github.com/xtop-cli/widgets"
+
+[dependencies]
+ratatui.workspace = true
+xtop-plugin-api.workspace = true
+serde_json.workspace = true
+xtop-widget-api.workspace = true
+xtop-widget-core = { path = "../xtop-widget-core" }
+
+[dev-dependencies]
+xtop-widget-core = { path = "../xtop-widget-core", features = ["testkit"] }

@@ -1,0 +1,18 @@
+[package]
+name = "xtop-widget-storage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Storage widget for the xtop TUI: per-mount capacity rows with used/free readouts"
+repository = "https://github.com/xtop-cli/widgets"
+
+[dependencies]
+ratatui.workspace = true
+xtop-plugin-api.workspace = true
+serde_json.workspace = true
+xtop-widget-api.workspace = true
+xtop-widget-core = { path = "../xtop-widget-core" }
+
+[dev-dependencies]
+xtop-widget-core = { path = "../xtop-widget-core", features = ["testkit"] }

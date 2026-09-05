@@ -1,10 +1,57 @@
-# Authoring a widget pack
+# Authoring a widget crate
 
-A widget pack is a Rust crate that renders widgets against the read-only
-[`xtop-widget-api`](https://github.com/xtop-cli/api) contract and registers
-them by name. This repo contains two packs: the base pack `xtop-widgets`
-(this workspace root) and the demo pack `xtop-widget-blocks` under
-`packs/`. Community packs live in `custom/` (see its README).
+A widget is a **crate**: it renders against the read-only
+[`xtop-widget-api`](https://github.com/xtop-cli/api) contract and exposes a
+single `render` entry point. The kernel shows a widget when a pack
+registers it by name; this repo ships two packs — the base pack
+`xtop-widgets` (this workspace root, an *aggregator* of the per-widget
+crates) and the ASCII pack `xtop-widget-blocks` under `packs/`. Community
+packs live in `custom/` (see its README).
+
+## Repository layout
+
+```
+xtop-cli/widgets/
+  xtop-widget-core/              shared engine: chart, option parsers, roles,
+                                 formatting/painter, plus the `testkit` feature
+                                 (WidgetState double for tests)
+  xtop-widget-header/            one crate per widget, each exposing
+  xtop-widget-cpu/                  `pub fn render(f: &mut Frame,
+  … (11 crates)                      state: &dyn WidgetState, area: Rect)`
+  src/                           xtop-widgets — the aggregator pack: depends
+                                 on the 11 widget crates and builds the
+                                 registry (name -> renderer) the kernel uses
+  packs/xtop-widget-blocks/      the alternate ASCII pack (monolithic crate)
+  custom/                        community packs (see custom/README.md)
+  docs/                          this guide + the widget reference
+```
+
+## The unit a user designs and installs: a crate
+
+The installable, designable unit of a widget is its crate folder
+`xtop-widget-<name>/`. To design your own widget:
+
+1. Copy an existing widget crate (`cp -r xtop-widget-processes
+   xtop-widget-mycpu`) or scaffold one (the kernel's `widget scaffold`
+   command emits the same shape).
+2. Rename the package in `Cargo.toml` and keep the contract dependencies:
+   `xtop-widget-api` + `xtop-plugin-api` (model types) + `xtop-widget-core`
+   (shared engine) + `ratatui`; version stays `0.1.0` (version policy:
+   everything early, no bumps).
+3. Implement `pub fn render(f: &mut Frame, state: &dyn WidgetState,
+   area: Rect)` in `src/lib.rs` — draw your view inside `area`, guarded for
+   tiny rects, using `xtop-widget-core` for the frame, colors and charts.
+4. Register the crate under a widget name. Built-in crates are registered
+   by the aggregator (`xtop-widgets::registry`, `src/lib.rs`); community
+   crates are added as workspace members and wired into the kernel the
+   same way packs are (see "Pack selection semantics" below) — the kernel
+   resolves `(pack, name)` at render time, so a designed crate replaces a
+   built-in widget by name with no layout change.
+
+The widget's own tests live in its `#[cfg(test)] mod tests` (next to the
+code) and use the shared test double from `xtop-widget-core`'s `testkit`
+feature — declared in the crate's `[dev-dependencies]` as
+`xtop-widget-core = { features = ["testkit"] }`.
 
 ## Renderer contract
 
@@ -28,15 +75,15 @@ need comes through `WidgetState`.
 
 ## The `registry()` entry point
 
-A pack exposes one function returning its renderers by widget *name* (the
-names layouts and fullscreen mode use). The base pack builds a
-`HashMap<&'static str, WidgetRenderer>`:
+A *pack* exposes one function returning its renderers by widget *name* (the
+names layouts and fullscreen mode use). The aggregator builds a
+`HashMap<&'static str, WidgetRenderer>` from its widget crates:
 
 ```rust
 pub fn registry() -> HashMap<&'static str, WidgetRenderer> {
     let mut m: HashMap<&'static str, WidgetRenderer> = HashMap::new();
-    m.insert("header", Arc::new(header::render));
-    m.insert("cpu", Arc::new(cpu::render));
+    m.insert("header", Arc::new(xtop_widget_header::render));
+    m.insert("cpu", Arc::new(xtop_widget_cpu::render));
     // ... every widget the pack provides
     m
 }
@@ -44,12 +91,14 @@ pub fn registry() -> HashMap<&'static str, WidgetRenderer> {
 
 A pack registers only the names it draws. Names it does not provide fall
 back to the base pack (see pack selection below), so `xtop-widget-blocks`
-registers just `cpu` and `memory`.
+registers `cpu`, `memory`, `processes`, `network`, `storage`, `disk_io`,
+`summary` and `sensors` in its ASCII look while every other name keeps the
+base rendering.
 
 ## What `WidgetState` offers
 
 `WidgetState` (xtop-widget-api, `state.rs`) is the sampled, read-only view of
-the running app. Its 20 methods group as:
+the running app. Its methods group as:
 
 - **The sample** — `snapshot() -> Option<&SystemSnapshot>`: one snapshot per
   tick; `None` before the first tick, so renderers start with an early
@@ -63,16 +112,43 @@ the running app. Its 20 methods group as:
   `VecDeque<(f64, f64)>`), `mem_history()`, `net_rx_history()`,
   `net_tx_history()`. Each entry is `(x, y)`; the x axis is the sample
   index/time.
+- **Process mapping (UX9.1)** — `uid_to_name(uid)` resolves a numeric uid
+  to the login name the kernel read from `/etc/passwd` (`None` = show the
+  numeric uid) and `process_cpu_history(pid)` returns the recent
+  per-process CPU samples (oldest → newest; empty = nothing drawn).
 - **View/control state** — `search_query()`, `process_selected_pid()`,
-  `process_sort_label()`, `layout_name()`, `is_searching()`,
-  `fullscreen_label()`, `sys_info()`, and `process_view()` (the process rows,
+  `process_sort_label()`, `process_sort_desc()` (direction for the sort
+  marker: `true` = descending), `layout_name()`, `is_searching()`,
+  `fullscreen_label()`, `sys_info()` (incl. the UX9.1 `cpu_model` and
+  `package_power_w` readouts), and `process_view()` (the process rows,
   already filtered by the search query and sorted by the user's column;
   selection is PID-anchored).
+- **Display options (DR-UX1)** — `widget_options()` returns the `options`
+  object of the layout node currently being rendered (`None` = default
+  behavior) and `logical_core_count()` the host's logical processor count
+  (used to normalize per-process CPU values to a whole-machine percentage).
+  The recognized keys per widget are documented in
+  [`docs/widgets.md`](widgets.md) ("Layout options per widget").
 
-## Canonical glyph helpers
+## The shared engine (`xtop-widget-core`)
 
-Packs must **not** re-implement color/border/marker mapping — the canonical
-helpers live in the `glyph` module of the contract crate:
+Widget crates do **not** re-implement palette roles, option parsing, glyph
+resolution, the chart engine or the temperature ramp — those live in
+`xtop-widget-core`:
+
+- `util` — formatting (bytes/rates/uptime/used-free), palette-role
+  constants, `gauge_gradient`, the temperature ramp (`temp_color`),
+  `resolved_charset`/`resolved_borders`, `draw_frame` (the standard widget
+  frame prologue) and the `Painter` direct-buffer canvas.
+- `options` — parse helpers for the layout `options` JSON plus the cpu
+  chart/core-selection types.
+- `chart` — the per-cell colored chart engine (histories) and the one-row
+  spark helpers (`spark_cells` etc.) for per-row braille.
+- `testkit` (cargo feature, dev-only) — the `WidgetState` double + the
+  offscreen terminal helpers for tests.
+
+Canonical glyph mapping (colors, borders, chart markers) lives in the
+contract crate — packs must **not** re-implement it:
 
 ```rust
 use xtop_widget_api::glyph::{border_for, marker_for, to_color, ASCII_BORDER};
@@ -111,9 +187,12 @@ let accent = to_color(state.theme_palette()[6]); // processes accent
 let dim = to_color(state.theme_palette()[8]);    // processes zebra rows
 ```
 
-Gauge colors pick palette indices from `state.alerts()` thresholds via the
-pack-private `gauge_gradient` helper (index 1 = alert, 3 = ≥50%, 2 =
-otherwise).
+Gauge colors pick palette indices from `state.alerts()` thresholds via
+`xtop_widget_core::util::gauge_gradient`. Indices are semantic *roles*
+(DR-UX3): the role table lives in `xtop-widget-core/src/util.rs` (0 bg, 1
+alert, 2 good, 3 warn, 4 read/download, 5 write/upload, 6 accent, 7 fg, 8
+dim, 9–15 multi-series ramp) and `docs/widgets.md` restates it. Packs may use
+the same numbers but must not invent undocumented slots.
 
 ## Pack selection semantics (kernel contract)
 
@@ -137,3 +216,15 @@ The kernel engine resolves `(pack, name)` at render time, as implemented in
 So a pack that wants to replace the built-in `cpu` registers a renderer under
 `"cpu"`, the user selects the pack, and any name the pack does not provide
 keeps its base rendering.
+
+## Installing a designed crate (UX9.2 kernel flow)
+
+The kernel's `widget` command mirrors the plugin commands:
+
+- `widget scaffold <name>` emits a single-widget crate template (the shape
+  of this repo's `xtop-widget-<name>` crates: manifest with the four
+  contract deps + `src/lib.rs` with `render` + a test using the testkit).
+- `widget list` shows the built-in crates and their registration names.
+- `widget install <path>` adds the crate to the manifest and to the pack
+  table, so `xtop` renders the widget under its registered name from the
+  next launch — layouts select it exactly like a built-in widget.

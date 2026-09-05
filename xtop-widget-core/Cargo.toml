@@ -1,0 +1,20 @@
+[package]
+name = "xtop-widget-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Shared rendering engine, option parsers, palette roles and test doubles for the xtop widget crates"
+repository = "https://github.com/xtop-cli/widgets"
+
+[dependencies]
+ratatui.workspace = true
+serde_json.workspace = true
+xtop-plugin-api.workspace = true
+xtop-widget-api.workspace = true
+
+[features]
+# Test doubles for `WidgetState` + offscreen render helpers, used by the
+# widget crates' dev-dependencies (`xtop-widget-core = { features =
+# ["testkit"] }` in `[dev-dependencies]`). Never enabled for consumers.
+testkit = []
