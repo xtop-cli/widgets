@@ -478,7 +478,7 @@ How it differs from the base pack:
   and 20x10 with empty and sampled state, assert every row stays inside the
   frame (no wrap detection) and that charts produce multi-row glyphs when
   the plot is at least two rows tall (see `xtop-widgets` `src/lib.rs`,
-  `mod tests`, and `packs/xtop-widget-blocks/src/lib.rs`, `mod tests`; both
+  `mod tests`, and `xtop-widget-blocks/src/lib.rs`, `mod tests`; both
   test suites share the `xtop-widget-core` testkit — the `WidgetState`
   double behind the `testkit` cargo feature).
 - Widgets never mutate state and never touch kernel types; the rendering

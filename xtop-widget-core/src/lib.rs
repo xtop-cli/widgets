@@ -22,8 +22,8 @@
 //!   `#[cfg(test)]` module uses.
 //!
 //! The `xtop-widget-blocks` pack (the alternative ASCII pack, kept as a
-//! monolithic crate under `packs/`) consumes the same modules and keeps its
-//! ASCII identity in its own code.
+//! monolithic sibling crate of the per-widget crates) consumes the same
+//! modules and keeps its ASCII identity in its own code.
 
 pub mod chart;
 pub mod options;

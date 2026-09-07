@@ -27,14 +27,13 @@ xtop-cli/widgets/
   xtop-widget-gpu/
   xtop-widget-summary/
   xtop-widget-sensors/
-  src/                           xtop-widgets — the aggregator pack: depends
-                                 on the 11 widget crates and builds the
-                                 registry the kernel uses (same 11 names)
-  packs/
-    xtop-widget-blocks/          alternate pack (ascii blocks look for
+  xtop-widget-blocks/            alternate pack (ascii blocks look for
                                  cpu/memory/processes/network/storage/disk_io
                                  + summary/sensors), consuming the same
                                  xtop-widget-core engine
+  src/                           xtop-widgets — the aggregator pack: depends
+                                 on the 11 widget crates and builds the
+                                 registry the kernel uses (same 11 names)
   custom/                        community packs (see custom/README.md)
   docs/                          authoring guide + widget reference
 ```
@@ -66,7 +65,9 @@ sensor data) are the UX8.4 additions for the dense layouts.
 - Plugin widgets keep precedence over every pack.
 
 Packs are integrated into the binary as Cargo features (like plugins). The
-`widget-blocks` feature enables the demo pack from `packs/`.
+`widget-blocks` feature enables the ASCII blocks pack
+(`xtop-widget-blocks`, a sibling of the per-widget crates so git consumers
+resolve its dependency on `xtop-widget-core`).
 
 ## Designing a widget
 

@@ -15,7 +15,7 @@
 //! always reproduce the pre-options rendering byte for byte (DR-UX2).
 //!
 //! The `xtop-widget-blocks` pack imports this module (it is a workspace
-//! member of the same repository); see `packs/xtop-widget-blocks/src/lib.rs`.
+//! member of the same repository); see `xtop-widget-blocks/src/lib.rs`.
 
 use serde_json::Value;
 

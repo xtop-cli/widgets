@@ -23,8 +23,9 @@
 //! UX9.4 row depth:
 //!
 //! - **User names** — the User column renders the resolved login name via
-//!   `state.uid_to_name(uid)` (the kernel reads `/etc/passwd`); when the
-//!   kernel has no mapping the numeric uid is shown, exactly as before.
+//!   `state.uid_to_name(uid)` (the kernel resolves from `/etc/passwd` on
+//!   unix, Directory Services on macOS and local accounts on Windows); when
+//!   the kernel has no mapping the numeric uid is shown, exactly as before.
 //! - **Command** — each row shows the full command line (`cmd_full`,
 //!   joined; falling back to `cmd`, then `exe_path`, then `?`) next to the
 //!   short program `name`.
