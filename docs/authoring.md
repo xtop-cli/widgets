@@ -5,8 +5,8 @@ A widget is a **crate**: it renders against the read-only
 single `render` entry point. The kernel shows a widget when a pack
 registers it by name; this repo ships two packs — the base pack
 `xtop-widgets` (this workspace root, an *aggregator* of the per-widget
-crates) and the ASCII pack `xtop-widget-blocks` under `packs/`. Community
-packs live in `custom/` (see its README).
+crates) and the ASCII pack `xtop-widget-blocks` (a sibling of the
+per-widget crates). Community packs live in `custom/` (see its README).
 
 ## Repository layout
 
@@ -21,7 +21,7 @@ xtop-cli/widgets/
   src/                           xtop-widgets — the aggregator pack: depends
                                  on the 11 widget crates and builds the
                                  registry (name -> renderer) the kernel uses
-  packs/xtop-widget-blocks/      the alternate ASCII pack (monolithic crate)
+  xtop-widget-blocks/            the alternate ASCII pack (monolithic crate)
   custom/                        community packs (see custom/README.md)
   docs/                          this guide + the widget reference
 ```

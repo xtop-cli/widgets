@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     ".",
     "xtop-widget-core",
+    "xtop-widget-blocks",
     "xtop-widget-header",
     "xtop-widget-cpu",
     "xtop-widget-memory",
@@ -14,7 +15,6 @@ members = [
     "xtop-widget-gpu",
     "xtop-widget-summary",
     "xtop-widget-sensors",
-    "packs/xtop-widget-blocks",
 ]
 
 [workspace.package]
