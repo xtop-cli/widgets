@@ -1,4 +1,5 @@
-# xtop-widgets
+<h1 align="center">
+<img src="https://raw.githubusercontent.com/xtop-cli/web/main/public/img/logo.png" width="100px" alt="Xtop logo" />Widgets</h1>
 
 Base **widget pack** for the [xtop](https://github.com/xtop-cli/xtop) TUI.
 
