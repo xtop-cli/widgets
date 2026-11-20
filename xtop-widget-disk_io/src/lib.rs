@@ -99,8 +99,7 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
     let y = {
         let mut painter = Painter::new(f.buffer_mut());
         let mut y = inner.y;
-        for i in 0..rows_cap as usize {
-            let d = &snap.disk_io[i];
+        for d in snap.disk_io.iter().take(rows_cap as usize) {
             y = device_row(
                 &mut painter,
                 inner,

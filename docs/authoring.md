@@ -197,7 +197,7 @@ the same numbers but must not invent undocumented slots.
 ## Pack selection semantics (kernel contract)
 
 The kernel engine resolves `(pack, name)` at render time, as implemented in
-`xtop/src/ui/layout/engine.rs`:
+`xtop/src/tui/layout/engine.rs`:
 
 - Packs are compiled into the kernel binary in a precedence-ordered list
   starting with the built-in `default` pack (`xtop_widgets::registry`);
