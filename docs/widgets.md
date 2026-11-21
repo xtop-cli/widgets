@@ -109,6 +109,7 @@ when a `cores` subset hides cores, and the `Pkg` readout above).
 | `columns.user` | `bool` | `true` | Show the User column (same auto-drop rule). |
 | `columns.cmd` | `bool` | `true` | Show the Command column (same auto-drop rule). |
 | `zebra` | `bool` | `true` | Alternate dim backgrounds on odd rows. |
+| `tree` | `bool` | `false` | Render the filtered/sorted process list as a parent/child tree using `ProcessInfo::parent_pid`. Orphans and self-parented processes are roots; siblings keep the kernel order. |
 
 Fixed layout (UX7.3 + UX9.4): PID (right-aligned, 7), Name (left-aligned,
 flexible, truncated with `…`), the **cpu spark** (see below), CPU% (right,
@@ -158,7 +159,7 @@ kill-confirmation highlighting would need a "pending kill" flag on the
 widget contract, which does not exist — flagged as a kernel-side dependency.
 
 ```json
-{ "cpu": "both", "columns": { "memory": true, "user": true, "cmd": true }, "zebra": true }
+{ "cpu": "both", "columns": { "memory": true, "user": true, "cmd": true }, "zebra": true, "tree": false }
 ```
 
 ### `network`
@@ -409,7 +410,7 @@ every widget is safe on an empty state.
 | `memory` | RAM/AVL/SWP meter rows (used/free amounts + RAM free-share spark on wide rows) plus the RAM history chart when the area is wide and tall enough; title gains a ⚠ marker over the memory threshold. | `snapshot().memory`/`swap`, `mem_history()`, `alerts().mem_high` | `sections`, glyph keys |
 | `storage` | One single-line row per mounted disk (label, percent, gradient bar; used/free amounts on wide rows + free braille bar when very wide); tall boxes render three-line meter blocks per disk (`mount` + `U` used bar + `A` available bar) so per-disk bars scale with the box height. | `snapshot().disks`, `alerts().disk_high` | `disks`, glyph keys |
 | `network` | Per-interface single-line rate rows (or aggregate RX/TX lines when narrow); RX/TX history chart below when wide and tall enough (aggregate live lines fill the gap while the history is empty). | `snapshot().networks`, `net_rx_history()`, `net_tx_history()` | `ifaces`, glyph keys |
-| `processes` | Fixed-column table with PID / Name / cpu-spark / CPU% / Mem / User / Command, dim `│` separators, accent header with the sort marker on the sorted column only, zebra rows, selection row, viewport scroll window with a right-edge scrollbar; user names resolved through the kernel uid map, commands from the full argv, per-process cpu braille sparks. | `process_view()`, `uid_to_name()`, `process_cpu_history()`, `process_sort_label()`, `process_sort_desc()`, `search_query()` | `cpu`, `columns`, `zebra`, glyph keys |
+| `processes` | Fixed-column table with PID / Name / cpu-spark / CPU% / Mem / User / Command, dim `│` separators, accent header with the sort marker on the sorted column only, zebra rows, selection row, viewport scroll window with a right-edge scrollbar; user names resolved through the kernel uid map, commands from the full argv, per-process cpu braille sparks; optional parent/child tree with `└─`/`├─` connectors. | `process_view()`, `uid_to_name()`, `process_cpu_history()`, `process_sort_label()`, `process_sort_desc()`, `search_query()`, `ProcessInfo::parent_pid` | `cpu`, `columns`, `zebra`, `tree`, glyph keys |
 | `disk_io` | One single-line row per device: name, R/W rates in the direction roles (wide rows add rate bars); dual read/write history chart in the leftover rows when the contract tracks the aggregate disk histories; "No disk I/O data" when empty. | `snapshot().disk_io`, `disk_read_history()`, `disk_write_history()` | glyph keys only |
 | `battery` | One gauge per battery: name, %, state, minutes to full/empty when applicable; "No battery data available" when empty. | `snapshot().batteries` | glyph keys only |
 | `gpu` | One gauge per GPU: name, %, memory used/total, temperature; "No GPU data available" when empty. | `snapshot().gpus` | glyph keys only |

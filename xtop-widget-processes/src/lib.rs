@@ -40,7 +40,7 @@
 //! The `options` object (see `docs/widgets.md` "processes") refines:
 //!
 //! ```json
-//! { "cpu": "both", "columns": { "memory": true, "user": true, "cmd": true }, "zebra": true }
+//! { "cpu": "both", "columns": { "memory": true, "user": true, "cmd": true }, "zebra": true, "tree": false }
 //! ```
 //!
 //! - `cpu`: `"core"` (default) | `"total"` | `"both"` — the display basis of
@@ -49,6 +49,9 @@
 //!   Mem/User/Command columns (default true; dropping happens automatically
 //!   when the area is too narrow).
 //! - `zebra`: alternate row backgrounds (default true).
+//! - `tree`: render the filtered/sorted process list as a parent/child tree
+//!   using `ProcessInfo::parent_pid` (default false). Orphans and
+//!   self-parented processes are roots; siblings keep the kernel's order.
 //!
 //! Search: when a filter is active the query substring in the Name column is
 //! highlighted (accent background). Kill highlighting needs a kernel-side
@@ -336,6 +339,99 @@ fn user_text(state: &dyn WidgetState, p: &ProcessInfo) -> String {
     }
 }
 
+/// One row in the optional process tree.
+struct TreeEntry {
+    /// Index into the sorted process list.
+    index: usize,
+    /// Connector + ancestor lines, empty for depth-zero rows.
+    prefix: String,
+}
+
+/// Build the row order and tree prefixes. The sorted/filtered list is the
+/// source of truth; children are attached to their parent when the parent is
+/// present, otherwise the row is a root. The traversal is iterative and
+/// cycle-safe.
+fn tree_entries(items: &[&ProcessInfo], tree: bool) -> Vec<TreeEntry> {
+    if !tree {
+        return items
+            .iter()
+            .enumerate()
+            .map(|(index, _)| TreeEntry {
+                index,
+                prefix: String::new(),
+            })
+            .collect();
+    }
+
+    use std::collections::{HashMap, HashSet};
+    let by_pid: HashMap<u32, usize> = items
+        .iter()
+        .enumerate()
+        .map(|(index, process)| (process.pid, index))
+        .collect();
+    let mut children: HashMap<usize, Vec<usize>> = HashMap::new();
+    let mut roots = Vec::new();
+    for (index, process) in items.iter().enumerate() {
+        match process
+            .parent_pid
+            .and_then(|parent| by_pid.get(&parent).copied())
+            .filter(|parent| *parent != index)
+        {
+            Some(parent) => children.entry(parent).or_default().push(index),
+            None => roots.push(index),
+        }
+    }
+
+    let mut out = Vec::with_capacity(items.len());
+    let mut visited = HashSet::new();
+    let mut stack: Vec<(usize, String, bool, bool)> = roots
+        .iter()
+        .rev()
+        .map(|index| (*index, String::new(), true, true))
+        .collect();
+    while let Some((index, ancestor, is_last, is_root)) = stack.pop() {
+        if !visited.insert(index) {
+            continue;
+        }
+        let prefix = if is_root {
+            String::new()
+        } else {
+            let connector = if is_last { "└─ " } else { "├─ " };
+            format!("{ancestor}{connector}")
+        };
+        out.push(TreeEntry {
+            index,
+            prefix: prefix.clone(),
+        });
+        let child_ancestor = if is_root {
+            String::new()
+        } else {
+            let continuation = if is_last { "   " } else { "│  " };
+            format!("{ancestor}{continuation}")
+        };
+        if let Some(kids) = children.get(&index) {
+            for (position, child) in kids.iter().enumerate().rev() {
+                stack.push((
+                    *child,
+                    child_ancestor.clone(),
+                    position + 1 == kids.len(),
+                    false,
+                ));
+            }
+        }
+    }
+    // Defensive fallback for malformed cyclic input: keep every row visible.
+    for index in 0..items.len() {
+        if visited.insert(index) {
+            out.push(TreeEntry {
+                index,
+                prefix: String::new(),
+            });
+        }
+    }
+    out
+}
+
 pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
     let opts = state.widget_options();
     let fg = to_color(*state.theme_fg());
@@ -365,6 +461,10 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
         return;
     }
     let items = state.process_view();
+    let tree = opts
+        .and_then(|o| o.get("tree").and_then(Value::as_bool))
+        .unwrap_or(false);
+    let entries = tree_entries(&items, tree);
 
     // --- layout: header row + viewport -------------------------------------
     let mode = match opts {
@@ -381,7 +481,7 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
     let sorted_col = sorted_column(state.process_sort_label(), mode, show_memory);
     let direction = if desc { "▼" } else { "▲" };
 
-    let n = items.len();
+    let n = entries.len();
     let view_h = inner.height - 1; // header row
     let windowed = n > view_h as usize;
     // A 1-column dim scrollbar at the right edge when the list is windowed.
@@ -400,7 +500,11 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
     // Window start around the selected index (selection always visible).
     let selected = state.process_selected_pid();
     let sel_idx = selected
-        .and_then(|pid| items.iter().position(|p| p.pid == pid))
+        .and_then(|pid| {
+            entries
+                .iter()
+                .position(|entry| items[entry.index].pid == pid)
+        })
         .unwrap_or(0);
     let start = window_start(sel_idx, n, view_h as usize);
 
@@ -442,7 +546,8 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
         if item_idx >= n {
             break;
         }
-        let p = items[item_idx];
+        let entry = &entries[item_idx];
+        let p = items[entry.index];
         let is_selected = selected == Some(p.pid);
         let y = inner.y + 1 + row;
         let zebra_row = zebra && (start + row as usize) % 2 == 1;
@@ -478,6 +583,7 @@ pub fn render(f: &mut Frame, state: &dyn WidgetState, area: Rect) {
                 fg,
                 row_bg,
                 is_selected,
+                &entry.prefix,
             );
         }
         // Separators between the data columns (over the row background).
@@ -525,6 +631,7 @@ fn paint_cell(
     fg: Color,
     row_bg: Color,
     is_selected: bool,
+    tree_prefix: &str,
 ) {
     match seg.col {
         Column::Pid | Column::CpuCore | Column::CpuTotal | Column::Mem => {
@@ -582,19 +689,45 @@ fn paint_cell(
             }
         }
         Column::Name => {
-            let shown = truncate_chars(&p.name, seg.width as usize);
-            paint_name(
-                painter,
-                seg.x,
-                y,
-                &shown,
-                &p.name,
-                query,
-                accent,
-                bg,
-                fg,
-                is_selected,
-            );
+            if tree_prefix.is_empty() {
+                let shown = truncate_chars(&p.name, seg.width as usize);
+                paint_name(
+                    painter,
+                    seg.x,
+                    y,
+                    &shown,
+                    &p.name,
+                    query,
+                    accent,
+                    bg,
+                    fg,
+                    is_selected,
+                );
+            } else {
+                let prefix = truncate_chars(tree_prefix, seg.width as usize);
+                let prefix_w = prefix.chars().count() as u16;
+                let style = if is_selected {
+                    Style::default().fg(bg)
+                } else {
+                    Style::default().fg(to_color(state.theme_palette()[ROLE_DIM]))
+                };
+                painter.text(seg.x, y, &prefix, style);
+                if prefix_w < seg.width {
+                    let shown = truncate_chars(&p.name, (seg.width - prefix_w) as usize);
+                    paint_name(
+                        painter,
+                        seg.x + prefix_w,
+                        y,
+                        &shown,
+                        &p.name,
+                        query,
+                        accent,
+                        bg,
+                        fg,
+                        is_selected,
+                    );
+                }
+            }
         }
     }
     let _ = spark_w;
@@ -1259,5 +1392,29 @@ mod tests {
         for label in ["PID", "Name", "cpu", "CPU%", "Mem", "User", "Command"] {
             assert!(header.contains(label), "header label {label}: {header}");
         }
+    }
+
+    #[test]
+    fn processes_tree_renders_parent_child_connectors() {
+        let mut state = TinyState::sampled().with_options(json!({ "tree": true }));
+        let parent = process(10, 30.0);
+        let mut child = process(11, 10.0);
+        child.parent_pid = Some(10);
+        let mut grandchild = process(12, 5.0);
+        grandchild.parent_pid = Some(11);
+        state.set_processes(vec![parent, child, grandchild]);
+
+        let mut term = terminal(80, 24);
+        draw(&mut term, &state, Rect::new(0, 0, 80, 24));
+        let text = all_text(&term);
+        assert!(text.contains("proc-10"), "parent row: {text}");
+        assert!(
+            text.contains("\u{2514}\u{2500} proc-11"),
+            "child connector: {text}"
+        );
+        assert!(
+            text.contains("   \u{2514}\u{2500} proc-"),
+            "grandchild indentation: {text}"
+        );
     }
 }
