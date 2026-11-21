@@ -95,3 +95,7 @@ helpers in `xtop_widget_api::glyph` — see
   widget name (base pack + fullscreen-only extras), the full per-widget
   layout-options schema (keys, defaults, examples, fallback rules), and how
   the blocks pack differs.
+
+## License
+
+GPL-3.0-or-later. See [LICENSE](LICENSE). User-contributed widget packs remain under the license chosen by their authors; see the license note.

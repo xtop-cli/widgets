@@ -12,7 +12,7 @@ over `xtop-widget-api`), and the kernel engine integrates them at
    live here are added as members of this workspace (under `custom/`).
 2. The kernel depends on the crate behind an optional Cargo feature and
    appends a `Pack { name, renderers }` entry to its precedence list
-   (`xtop/src/ui/layout/engine.rs::packs()`).
+   (`xtop/src/tui/layout/engine.rs::packs()`).
 3. Users select the pack with `style.pack` (global) or
    `style.widgets.<name>.pack` (per widget); missing names fall back to the
    base pack.
